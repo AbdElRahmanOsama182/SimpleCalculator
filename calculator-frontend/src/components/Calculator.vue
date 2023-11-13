@@ -5,7 +5,7 @@
             <div id="bottom">{{ currNum }}</div>
         </div>
         <button @click="singleOperation('percent')" class="opBtn">%</button>
-        <button @click="clear" class="opBtn">CE</button>
+        <button @click="clearE" class="opBtn">CE</button>
         <button @click="clear" class="opBtn">C</button>
         <button @click="deleting" class="opBtn">&#9003;</button>
         <button @click="singleOperation('fraction')" class="opBtn">&sup1;&#8725;&#8339;</button>
@@ -39,8 +39,6 @@ export default {
             expression: '',
             currNum: '',
             firstOperand: '',
-            secondOperand: '',
-            opertion: '',
             operator: false,
             operatorDone: false,
             done: false,
@@ -53,28 +51,32 @@ export default {
             this.expression = '';
             this.currNum = '';
             this.firstOperand = '';
-            this.secondOperand = '';
-            this.opertion = '';
             this.operator = false;
             this.operatorDone = false;
             this.prevSingle = false;
             this.done = false;
         },
+        clearE() {
+            if(this.currNum==='E' || this.done) this.clear();
+            else this.currNum = '';
+            this.prevSingle = false;
+        },
         deleting() {
             if(this.currNum==='E' || this.done){
                 this.clear();
             } 
-            if ((this.currNum === '' && this.operator)||this.operatorDone) {
-                this.temp = this.firstOperand;
-                this.clear();
-                this.currNum = this.temp;
+            if (!((this.currNum === '' && this.operator)||this.operatorDone || this.prevSingle)) {
+                this.currNum = this.currNum.slice(0, -1);
             }
-            else this.currNum = this.currNum.slice(0, -1);
+            
         },
         appendNum(num) {
             if(this.currNum==='E') this.clear();
-            if(this.done||this.prevSingle) {
+            if(this.done) {
                 this.clear();
+            }
+            if (this.prevSingle) {
+                this.clearE();
             }
             if(this.operatorDone) {
                 this.firstOperand = this.currNum;
@@ -89,19 +91,25 @@ export default {
         },
 
         async singleOperation(op) {
-            if (this.currNum !== '' && this.currNum !== 'E' && !this.operatorDone) {
+            if (this.currNum !== '' && this.currNum !== 'E') {
                 await fetch(`http://localhost:8081/`+op+`/`+this.currNum, {
                     method: 'get',
                 }).then(res => {
                     return res.text();
                 }).then(data => {
-                    this.currNum = data;
+                    if (op === 'percent' && this.firstOperand !== '' && (this.expression[this.expression.length - 1] === '+' || this.expression[this.expression.length - 1] === '−')) {
+                        this.currNum = this.firstOperand * data;
+                    }
+                    else {
+                        this.currNum = data;
+                    }
                 });
                 if (this.done) {
                     this.temp = this.currNum;
                     this.clear();
                     this.currNum = this.temp;
                 }
+                this.operatorDone = false;
                 this.prevSingle = true;
             }
         },
@@ -116,13 +124,12 @@ export default {
                 this.prevSingle = false;
                 this.firstOperand = this.currNum;
                 this.expression = this.expression + ' ' + this.firstOperand + ' ' + opSymbol;
-                this.opertion = op;
                 this.operator = true;
                 this.currNum = '';
             } else if (!this.operatorDone){
                 this.prevSingle = false;
-                this.secondOperand = this.currNum;
-                await fetch(`http://localhost:8081/`+this.firstOperand+`/`+this.opertion+`/`+this.secondOperand, {
+                this.expression = this.expression + ' ' + this.currNum;
+                await fetch(`http://localhost:8081/`+this.expression, {
                     method: 'get',
                 }).then(res => {
                     return res.text();
@@ -130,23 +137,22 @@ export default {
                     this.currNum = data;
                 });
                 if (this.currNum !== 'E') {
-                    this.expression = this.expression + ' ' + this.secondOperand + ' ' + opSymbol;
-                }
-                else {
-                    this.expression = this.expression + ' ' + this.secondOperand;
+                    this.expression = this.expression + ' ' + opSymbol;
                 }
                 this.firstOperand = this.currNum;
-                this.opertion = op;
                 this.operator = true;
                 this.operatorDone = true;
             }
+            else {
+                this.expression = this.expression.slice(0, -1);
+                this.expression = this.expression + ' ' + opSymbol;
+            }
         },
         equal(){
-            if (!this.done && this.currNum !== '' && this.currNum !== 'E' && !this.operatorDone) {
+            if (!this.done && this.currNum !== '' && this.currNum !== 'E') {
                 if (this.operator) {
-                    this.secondOperand = this.currNum;
-                    this.expression = this.expression + ' ' + this.secondOperand;
-                    fetch(`http://localhost:8081/`+this.firstOperand+`/`+this.opertion+`/`+this.secondOperand, {
+                    this.expression = this.expression + ' ' + this.currNum;
+                    fetch(`http://localhost:8081/`+this.expression, {
                         method: 'get',
                     }).then(res => {
                         return res.text();

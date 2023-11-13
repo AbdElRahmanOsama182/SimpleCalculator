@@ -1,33 +1,25 @@
 package com.abdelrahman.calculator;
 
+import org.springframework.expression.ExpressionParser;
+import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.stereotype.Service;
 
 @Service
 public class CalculatorService {
-    public String doubleOperation(String operation, double firstOperand, double secondOperand) {
-        double result = 0.0;
-        switch (operation) {
-            case "add":
-                result = firstOperand + secondOperand;
-                break;
-            case "subtract":
-                result = firstOperand - secondOperand;
-                break;
-            case "multiply":
-                result = firstOperand * secondOperand;
-                break;
-            case "divide":
-                if (secondOperand == 0) {
-                    return "E";
-                } else {
-                    result = firstOperand / secondOperand;
-                }
-                break;
+
+    ExpressionParser parser = new SpelExpressionParser();
+
+    public String expressionSolver(String expression) {
+        try {
+            expression = expression.replaceAll("÷", "/").replaceAll("×", "*").replaceAll("−", "-");
+            double result = parser.parseExpression(expression).getValue(Double.class);
+            if (result == (long) result) {
+                return String.format("%d", (long) result);
+            }
+            return String.valueOf(result);
+        } catch (Exception e) {
+            return "E";
         }
-        if (result == (long) result) {
-            return String.format("%d", (long) result);
-        }
-        return String.valueOf(result);
     }
 
     public String singleOperation(String operation, double operand) {

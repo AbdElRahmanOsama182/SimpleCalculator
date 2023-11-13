@@ -16,11 +16,9 @@ public class CalculatorController {
         this.calculatorService = calculatorService;
     }
 
-    @GetMapping("{firstOperand}/{operation}/{secondOperand}")
-    public String doubleOperation(@PathVariable("firstOperand") double firstOperand,
-            @PathVariable("operation") String operation,
-            @PathVariable("secondOperand") double secondOperand) {
-        return calculatorService.doubleOperation(operation, firstOperand, secondOperand);
+    @GetMapping("{expression}")
+    public String expressionSolver(@PathVariable("expression") String expression) {
+        return calculatorService.expressionSolver(expression);
     }
 
     @GetMapping("{operation}/{operand}")
