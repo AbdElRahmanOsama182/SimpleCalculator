@@ -8,6 +8,7 @@ This project presents a web-based calculator, inspired by the Windows calculator
 ![Calculator.png](./calculator-frontend/src/assets/Calculator.png)
 ---
 
+
 ## **Features**
 
 - **Basic Arithmetic Operations:** Addition, subtraction, multiplication, and division.
@@ -35,15 +36,13 @@ The **`data()`** function initializes the component's data properties, including
 data() {
     return {
         expression: '',
-        currNum: '',
-        firstOperand: '',
-        secondOperand: '',
-        opertion: '',
-        operator: false,
-        operatorDone: false,
-        done: false,
-        prevSingle: false,
-        temp: '',
+				currNum: '',
+				firstOperand: '',
+				operator: false,
+				operatorDone: false,
+				done: false,
+				prevSingle: false,
+				temp: '',
     }
 }
 ```
@@ -59,12 +58,22 @@ clear() {
     this.expression = '';
     this.currNum = '';
     this.firstOperand = '';
-    this.secondOperand = '';
-    this.opertion = '';
     this.operator = false;
     this.operatorDone = false;
     this.prevSingle = false;
     this.done = false;
+}
+```
+
+### **`clearE()`**
+
+The **`clearE()`** method resets the current number.
+
+```jsx
+clearE() {
+		if(this.currNum==='E' || this.done) this.clear();
+		else this.currNum = '';
+    this.prevSingle = false;
 }
 ```
 
@@ -77,13 +86,9 @@ deleting() {
     if(this.currNum==='E' || this.done){
         this.clear();
     } 
-    if ((this.currNum === '' && this.operator)||this.operatorDone) {
-        this.temp = this.firstOperand;
-        this.clear();
-        this.currNum = this.temp;
-        
-    }
-    else this.currNum = this.currNum.slice(0, -1);
+    if (!((this.currNum === '' && this.operator)||this.operatorDone || this.prevSingle)) {
+        this.currNum = this.currNum.slice(0, -1);
+    }  
 }
 ```
 
@@ -94,8 +99,11 @@ The **`appendNum(num)`** method handles the input of numeric values, updating th
 ```jsx
 appendNum(num) {
     if(this.currNum==='E') this.clear();
-    if(this.done||this.prevSingle) {
+    if(this.done) {
         this.clear();
+    }
+    if (this.prevSingle) {
+        this.clearE();
     }
     if(this.operatorDone) {
         this.firstOperand = this.currNum;
@@ -103,6 +111,7 @@ appendNum(num) {
         this.operatorDone = false;
     }
     if (num === '.' && this.currNum.includes('.')) return;
+    
     if (this.currNum === '0') this.deleting();
     if (num === '.' && this.currNum === '') this.currNum = '0';
     this.currNum += num;
@@ -115,19 +124,25 @@ The **`singleOperation(op)`** method handles unary operations like square, squar
 
 ```jsx
 async singleOperation(op) {
-    if (this.currNum !== '' && this.currNum !== 'E' && !this.operatorDone) {
+    if (this.currNum !== '' && this.currNum !== 'E') {
         await fetch(`http://localhost:8081/`+op+`/`+this.currNum, {
             method: 'get',
         }).then(res => {
             return res.text();
         }).then(data => {
-            this.currNum = data;
+            if (op === 'percent' && this.firstOperand !== '' && (this.expression[this.expression.length - 1] === '+' || this.expression[this.expression.length - 1] === '−')) {
+                this.currNum = this.firstOperand * data;
+            }
+            else {
+                this.currNum = data;
+            }
         });
         if (this.done) {
             this.temp = this.currNum;
             this.clear();
             this.currNum = this.temp;
         }
+        this.operatorDone = false;
         this.prevSingle = true;
     }
 }
@@ -149,13 +164,12 @@ async doubleOperation(op,opSymbol) {
         this.prevSingle = false;
         this.firstOperand = this.currNum;
         this.expression = this.expression + ' ' + this.firstOperand + ' ' + opSymbol;
-        this.opertion = op;
         this.operator = true;
         this.currNum = '';
     } else if (!this.operatorDone){
         this.prevSingle = false;
-        this.secondOperand = this.currNum;
-        await fetch(`http://localhost:8081/`+this.firstOperand+`/`+this.opertion+`/`+this.secondOperand, {
+        this.expression = this.expression + ' ' + this.currNum;
+        await fetch(`http://localhost:8081/`+this.expression, {
             method: 'get',
         }).then(res => {
             return res.text();
@@ -163,15 +177,15 @@ async doubleOperation(op,opSymbol) {
             this.currNum = data;
         });
         if (this.currNum !== 'E') {
-            this.expression = this.expression + ' ' + this.secondOperand + ' ' + opSymbol;
-        }
-        else {
-            this.expression = this.expression + ' ' + this.secondOperand;
+            this.expression = this.expression + ' ' + opSymbol;
         }
         this.firstOperand = this.currNum;
-        this.opertion = op;
         this.operator = true;
         this.operatorDone = true;
+    }
+    else {
+        this.expression = this.expression.slice(0, -1);
+        this.expression = this.expression + ' ' + opSymbol;
     }
 }
 ```
@@ -182,11 +196,10 @@ The **`equal()`** method calculates the result when the equal button is pressed.
 
 ```jsx
 equal(){
-    if (!this.done && this.currNum !== '' && this.currNum !== 'E' && !this.operatorDone) {
+    if (!this.done && this.currNum !== '' && this.currNum !== 'E') {
         if (this.operator) {
-            this.secondOperand = this.currNum;
-            this.expression = this.expression + ' ' + this.secondOperand;
-            fetch(`http://localhost:8081/`+this.firstOperand+`/`+this.opertion+`/`+this.secondOperand, {
+            this.expression = this.expression + ' ' + this.currNum;
+            fetch(`http://localhost:8081/`+this.expression, {
                 method: 'get',
             }).then(res => {
                 return res.text();
@@ -212,35 +225,22 @@ The Vue.js frontend is organized with components and styles, providing a clean a
 
 ### **`CalculatorService.java`**
 
-### **`doubleOperation(...)`**
+### **`expressionSolver(...)`**
 
-The **`doubleOperation(...)`** method in the **`CalculatorService`** class performs the actual arithmetic calculations for double-operand operations.
+The **`expressionSolver(...)`** method in the **`CalculatorService`** class performs the actual arithmetic calculations for double-operand operations.
 
 ```java
-public String doubleOperation(String operation, double firstOperand, double secondOperand) {
-    double result = 0.0;
-    switch (operation) {
-        case "add":
-            result = firstOperand + secondOperand;
-            break;
-        case "subtract":
-            result = firstOperand - secondOperand;
-            break;
-        case "multiply":
-            result = firstOperand * secondOperand;
-            break;
-        case "divide":
-            if (secondOperand == 0) {
-                return "E";
-            } else {
-                result = firstOperand / secondOperand;
-            }
-            break;
+public String expressionSolver(String expression) {
+    try {
+        expression = expression.replaceAll("÷", "/").replaceAll("×", "*").replaceAll("−", "-");
+        double result = parser.parseExpression(expression).getValue(Double.class);
+        if (result == (long) result) {
+            return String.format("%d", (long) result);
+        }
+        return String.valueOf(result);
+    } catch (Exception e) {
+        return "E";
     }
-    if (result == (long) result) {
-        return String.format("%d", (long) result);
-    }
-    return String.valueOf(result);
 }
 ```
 
@@ -302,14 +302,12 @@ The Spring Boot backend follows a modular structure:
 
 Perform double-operand arithmetic operations (add, subtract, multiply, divide).
 
-**Endpoint:** **`/doubleOperation/{firstOperand}/{operation}/{secondOperand}`**
+**Endpoint:** **`/{expression}`**
 
 ```java
-@GetMapping("{firstOperand}/{operation}/{secondOperand}")
-public String doubleOperation(@PathVariable("firstOperand") double firstOperand,
-        @PathVariable("operation") String operation,
-        @PathVariable("secondOperand") double secondOperand) {
-    return calculatorService.doubleOperation(operation, firstOperand, secondOperand);
+@GetMapping("{expression}")
+public String expressionSolver(@PathVariable("expression") String expression) {
+    return calculatorService.expressionSolver(expression);
 }
 ```
 
@@ -317,7 +315,7 @@ public String doubleOperation(@PathVariable("firstOperand") double firstOperand,
 
 Perform single-operand operations (square, square root, fraction, negate, percentage).
 
-**Endpoint:** **`/singleOperation/{operation}/{operand}`**
+**Endpoint:** **`/{operation}/{operand}`**
 
 ```java
 @GetMapping("{operation}/{operand}")
