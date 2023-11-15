@@ -11,7 +11,7 @@ public class CalculatorService {
 
     public String expressionSolver(String expression) {
         try {
-            expression = expression.replaceAll("÷", "/").replaceAll("×", "*").replaceAll("−", "-");
+            expression = expression.replaceAll("÷", "* 1.0 /").replaceAll("×", "*").replaceAll("−", "-");
             double result = parser.parseExpression(expression).getValue(Double.class);
             if (result == (long) result) {
                 return String.format("%d", (long) result);
